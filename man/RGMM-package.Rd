@@ -6,7 +6,7 @@
 \packageTitle{RGMM}
 }
 \description{
-In this package, we provide functions to provide robust clustering in the case of Gaussian, Student and Laplace Mixture Models. Function \code{\link{RobVar}} computes robustly the covariance of a numerical data set which are realizations of Gaussian, Student or Laplace vectors. Function \code{\link{RobMM}} enables to provide a clustering of a numerical data set while  \code{\link{Gen_MM}} enables to generate possibly contaminated mixture of Gaussian, Student and Laplace vectors.
+In this package, we provide functions to provide robust clustering in the case of Gaussian, Student and Laplace Mixture Models. Function \code{\link{RobVar}} computes robustly the covariance of a numerical data set which are realizations of Gaussian, Student or Laplace vectors. Function \code{\link{RobMM}} enables to provide a clustering of a numerical data set, \code{\link{RMMplot}} enables to produce graph for Robust Mixture Models,  while  \code{\link{Gen_MM}} enables to generate possibly contaminated mixture of Gaussian, Student and Laplace vectors.
 %\packageDescription{Gmedian}
 }
 

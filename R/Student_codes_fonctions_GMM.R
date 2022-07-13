@@ -7,9 +7,12 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
   n=nrow(X)
   finalcenters=matrix(0,nrow=K,ncol=ncol(X))
   finalcluster=matrix(0,nrow=nrow(X),ncol=K)
+  finaldensities=matrix(0,nrow=nrow(X),ncol=K)
+  densities=matrix(0,nrow=nrow(X),ncol=K)
   finalvar=matrix(0,nrow=ncol(X),ncol=K*ncol(X))
   finalprop=rep(0,K)
   finalniter=0
+  finaloutliers=c()
   if (length(initprop) >0){
     classif=initprop
     centers=matrix(0,ncol=ncol(X),nrow=K)
@@ -31,7 +34,12 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
     while (l < niterEM && dist > K*ncol(X)*arret)
     {
       l=l+1
-      centers2=centers
+      if (K > 1){
+        centers2=centers
+      }
+      if (K == 1){
+        centers2=as.vector(centers)
+      }
       #### Mise ? jour des centres et des variances et des poids
       for (k in 1:K)
       {
@@ -57,7 +65,12 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
           }
           if (length(which(is.na(weisz$covmedian)==T))==0){
             if (length(which(is.infinite(weisz$covmedian)==T))==0){
-              centers[k,]=weisz$median
+              if (K>1){
+                centers[k,]=weisz$median
+              }
+              if (K==1){
+                centers=weisz$median
+              }
               eig=eigen(weisz$covmedian)
               vec=eig$vectors
               vp=eig$values
@@ -94,14 +107,21 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
       for (k in 1 : K)
       {
         var=Sigma[,((k-1)*d+1):(k*d)]
-        cen=centers[k,]
-        Pi[,k] = mvtnorm::dmvt(X,delta=cen,sigma = (df-2)/df*var,df=df,log=F)
+        if (K>1){
+          cen=(centers[k,])
+        }
+        if (K==1){
+          cen=c(centers)
+        }
+        Pi[,k] = mvtnorm::dmvt(X,delta=cen,sigma = (df-2)/df*var,df=df,log=T)
       }
+      Phiik=Pi
+      Pi=Pi - apply(Pi,1,max)
       for (k in 1:K)
       {
-        I=which(Pi[,k]< exp(-100))
-        Pi[I,k] = exp(-100)
-        Pi[,k] = prop[k]*(Pi[,k])
+        I=which(Pi[,k]< epsout)
+        Pi[I,k] = (epsout)
+        Pi[,k] = prop[k]*exp(Pi[,k])
       }
       Pi=Pi/rowSums(Pi)
       Pi=Pi+epsPi
@@ -115,17 +135,12 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
     outliers=c()
     for (k in 1 : K)
     {
-      var=Sigma[,((k-1)*d+1):(k*d)]
-      cen=centers[k,]
-      Pilog =  mvtnorm::dmvt(X,delta=cen,sigma =(df-2)/df* var,df=df,log=F)
-      outliers=cbind(outliers,Pilog)
-      I=which(Pilog < exp(epsout))
-      Pilog[I]=exp(epsout)
-      LogLikeEM=LogLikeEM+prop[k] * (Pilog)
+      I=which(Phiik[,k] < epsout)
+      Phiik[I,k]=epsout
     }
-    I = apply(outliers,1,max)
-    outliers=which(I< exp(epsout))
-    LogLikeEM=sum(log(LogLikeEM))
+    LogLikeEM=sum(Pi*Phiik)+ sum(Pi*log(prop))- sum(Pi*log(Pi))
+    I = apply(Phiik,1,max)
+    outliers=which(I<= epsout)
     if (length(which(is.na(LogLikeEM)==T))==0){
       if(LogLikeEM> LogLike)
       {
@@ -133,6 +148,7 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
         finalcluster=Pi
         finalvar=Sigma
         LogLike=LogLikeEM
+        finaldensities=Phiik
         finalniter=l
         finalprop=prop
         finaloutliers=outliers
@@ -148,7 +164,7 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
       lambda=rep(0,d*K)
       Pi=matrix(1,nrow=n,ncol=K)
       Sigma=c()
-      centers=X[sample(1:n,K),]
+      centers=as.matrix(X[sample(1:n,K),],ncol=d)
       l=0
       dist=10^10
       for( k in 1:K)
@@ -163,14 +179,21 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
         for (k in 1 : K)
         {
           var=Sigma[,((k-1)*d+1):(k*d)]
-          cen=centers[k,]
-          Pi[,k] = mvtnorm::dmvt(X,delta=cen,sigma = (df-2)/df*var,df=df,log=F)
+          if (K>1){
+            cen=(centers[k,])
+          }
+          if (K==1){
+            cen=c(centers)
+          }
+          Pi[,k] = mvtnorm::dmvt(X,delta=cen,sigma = (df-2)/df*var,df=df,log=T)
         }
+        Phiik=Pi
+        Pi=Pi - apply(Pi,1,max)
         for (k in 1:K)
         {
-          I=which(Pi[,k]< exp(-100))
-          Pi[I,k] = exp(-100)
-          Pi[,k] = prop[k]*(Pi[,k])
+          I=which(Pi[,k]< (epsout))
+          Pi[I,k] = epsout
+          Pi[,k] = prop[k]*exp(Pi[,k])
         }
         Pi=Pi/rowSums(Pi)
         Pi=Pi+epsPi
@@ -179,7 +202,12 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
 #        {
 #          cat('Pi fout la merde : i=',K,o,l,'\n')
 #        }
-        centers2=centers
+        if (K > 1){
+          centers2=centers
+        }
+        if (K == 1){
+          centers2=as.vector(centers)
+        }
         #### Mise ? jour des centres et des variances et des poids
         for (k in 1:K)
         {
@@ -205,7 +233,12 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
             }
             if (length(which(is.na(weisz$covmedian)==T))==0){
               if (length(which(is.infinite(weisz$covmedian)==T))==0){
-                centers[k,]=weisz$median
+                if (K>1){
+                  centers[k,]=weisz$median
+                }
+                if (K==1){
+                  centers=weisz$median
+                }
                 eig=eigen(weisz$covmedian)
                 vec=eig$vectors
                 vp=eig$values
@@ -243,17 +276,12 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
       outliers=c()
       for (k in 1 : K)
       {
-        var=Sigma[,((k-1)*d+1):(k*d)]
-        cen=centers[k,]
-        Pilog =  mvtnorm::dmvt(X,delta=cen,sigma = (df-2)/df* var,df=df,log=F)
-        outliers=cbind(outliers,Pilog)
-        I=which(Pilog < exp(epsout))
-        Pilog[I]=exp(epsout)
-        LogLikeEM=LogLikeEM+prop[k] * (Pilog)
+        I=which(Phiik[,k] < epsout)
+        Phiik[I,k]=epsout
       }
-      I = apply(outliers,1,max)
-      outliers=which(I< exp(epsout))
-      LogLikeEM=sum(log(LogLikeEM))
+      LogLikeEM=sum(Pi*Phiik)+ sum(Pi*log(prop))- sum(Pi*log(Pi))
+      I = apply(Phiik,1,max)
+      outliers=which(I<= epsout)
       if (length(which(is.na(LogLikeEM)==T))==0){
         if(LogLikeEM> LogLike)
         {
@@ -262,6 +290,7 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
           finalvar=Sigma
           LogLike=LogLikeEM
           finalniter=l
+          finaldensities=Phiik
           finalprop=prop
           finaloutliers=outliers
         }
@@ -275,7 +304,7 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
 
 RTMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,epsvp=10^-4,
               mc_sample_size=1000, LogLike=-10^10,init=T,epsPi=10^-4,epsout=-100,
-              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),
+              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',
               methodMC="RobbinsMC", par=T,methodMCM="Weiszfeld")
 {
   initprop=F
@@ -286,6 +315,7 @@ RTMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,epsvp
   if (length(nclust)==1)
   {
     K=nclust
+    Kopt=nclust
     if (init==T)
     {
       initprop=  mclust::hclass(clas,nclust)
@@ -305,7 +335,8 @@ RTMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,epsvp
     bestresult=resultat
     I=which(is.na(a))
     a[I]=0
-    ICL= resultat$Loglike - log(nrow(X)/2)*(nclust*ncol(X) + nclust*ncol(X)*(ncol(X)+1)/2) + sum(a)
+    ICL=bestresult$Loglike - 0.5*log(nrow(X))*(nclust-1+  nclust*ncol(X) + nclust*ncol(X)*(ncol(X)+1)/2) - sum(resultat$Pi*log(resultat$Pi))
+    BIC=bestresult$Loglike - 0.5*log(nrow(X))*(nclust-1+ nclust*ncol(X) + nclust*ncol(X)*(ncol(X)+1)/2)
   }
   if (length(nclust)>1)
   {
@@ -367,17 +398,22 @@ RTMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,epsvp
 
     }
     ICL=c()
+    BIC=c()
     for (i in 1:length(nclust))
     {
-      a=resultat[[i]]$Pi*log(resultat[[i]]$Pi)
-      I=which(is.na(a))
-      a[I]=0
-      ICL=c(ICL,resultat[[i]]$Loglike - log(nrow(X)/2)*(nclust[i]*ncol(X) + nclust[i]*ncol(X)*(ncol(X)+1)/2) + sum(a) )
+      ICL=c(ICL,resultat[[i]]$Loglike - 0.5*log(nrow(X))*(nclust[i]-1+  nclust[i]*ncol(X) + nclust[i]*ncol(X)*(ncol(X)+1)/2) - sum(resultat[[i]]$Pi*log(resultat[[i]]$Pi)))
+      BIC=c(BIC,resultat[[i]]$Loglike - 0.5*log(nrow(X))*(nclust[i]-1+ nclust[i]*ncol(X) + nclust[i]*ncol(X)*(ncol(X)+1)/2) )
     }
+    if (criterion=='ICL'){
     k=which.max(ICL)
+    Kopt=nclust[k]
+    }
+    if (criterion=='BIC'){
+      k=which.max(BIC)
+      Kopt=nclust[k]
+    }
     bestresult=resultat[[k]]
   }
-  return(list(allresults=resultat,bestresult=bestresult,ICL=ICL))
+  return(list(allresults=resultat,bestresult=bestresult,ICL=ICL,BIC=BIC,data=X,nclust=nclust,Kopt=Kopt))
 }
-
 

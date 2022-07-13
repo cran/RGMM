@@ -1,15 +1,18 @@
 Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
                     mc_sample_size=1000, LogLike=-10^10,arret=10^(-4),epsvp=0,
-                    alpha=0.75,c=ncol(X),w=2,epsilon=10^(-3),epsPi=10^-4,initprop=F,epsout=-100,
+                    alpha=0.75,c=ncol(X),w=2,epsilon=10^(-3),epsPi=10^-4,initprop=F,epsout=-20,
                     methodMC="RobbinsMC",methodMCM="Weiszfeld")
 {
   d=ncol(X)
   n=nrow(X)
   finalcenters=matrix(0,nrow=K,ncol=ncol(X))
   finalcluster=matrix(0,nrow=nrow(X),ncol=K)
+  Phiik=matrix(0,nrow=nrow(X),ncol=K)
+  finalPhiik=matrix(0,nrow=nrow(X),ncol=K)
   finalvar=matrix(0,nrow=ncol(X),ncol=K*ncol(X))
   finalprop=rep(0,K)
   finalniter=0
+  finaloutliers=c()
   if (length(initprop) >0){
     classif=initprop
     centers=matrix(0,ncol=ncol(X),nrow=K)
@@ -31,7 +34,12 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
     while (l < niterEM && dist > K*ncol(X)*arret)
     {
       l=l+1
+      if (K > 1){
       centers2=centers
+      }
+      if (K == 1){
+        centers2=as.vector(centers)
+      }
       #### Mise ? jour des centres et des variances et des poids
       for (k in 1:K)
       {
@@ -40,7 +48,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
           prop[k]=mean(Pi[,k])
           if (methodMCM=="Weiszfeld_init")
           {
-            weisz=WeiszfeldCov_init(X,init = centers[k,],init_cov =Sigma[,((k-1)*d+1):(k*d)],weights=(Pi[,k])/sum(Pi[,k]),scores=F,nitermax = nitermax,epsilon = epsilon)
+            weisz=WeiszfeldCov_init(X,init = centers[k,,drop=FALSE],init_cov =Sigma[,((k-1)*d+1):(k*d)],weights=(Pi[,k])/sum(Pi[,k]),scores=F,nitermax = nitermax,epsilon = epsilon)
           }
           if (methodMCM=="Weiszfeld")
           {
@@ -49,7 +57,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
           #         weisz=Gmedian::WeiszfeldCov(X,weights=(Pi[,k]),scores=F,nitermax = nitermax,epsilon = epsilon)
           if (methodMCM=="Gmedian_init")
           {
-            weisz=GmedianCov_init(X,init = centers[k,],init_cov =Sigma[,((k-1)*d+1):(k*d)],weights=(Pi[,k]),scores=F)
+            weisz=GmedianCov_init(X,init = centers[k,,drop=FALSE],init_cov =Sigma[,((k-1)*d+1):(k*d)],weights=(Pi[,k]),scores=F)
           }
           if (methodMCM=="Gmedian")
           {
@@ -57,7 +65,12 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
           }
           if (length(which(is.na(weisz$covmedian)==T))==0){
             if (length(which(is.infinite(weisz$covmedian)==T))==0){
+              if (K>1){
               centers[k,]=weisz$median
+              }
+              if (K==1){
+                centers=weisz$median
+              }
               eig=eigen(weisz$covmedian)
               vec=eig$vectors
               vp=eig$values
@@ -94,15 +107,21 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
       for (k in 1 : K)
       {
         var=Sigma[,((k-1)*d+1):(k*d)]
-        cen=centers[k,]
+        if (K>1){
+        cen=(centers[k,])
+        }
+        if (K==1){
+          cen=c(centers)
+        }
         Pi[,k] = mvtnorm::dmvnorm(X,mean=cen,sigma = var,log=T)
       }
+      Phiik=Pi
       Pi=Pi - apply(Pi,1,max)
       for (k in 1:K)
       {
-        I=which(Pi[,k]< -100)
-        Pi[I,k] = -100
-        Pi[,k] = prop[k]*exp(Pi[,k])
+        I=which(Pi[,k]< epsout)
+        Pi[I,k] = epsout
+        Pi[,k] = prop[k]*exp(Pi[,k] )
       }
       Pi=Pi/rowSums(Pi)
       Pi=Pi+epsPi
@@ -116,23 +135,19 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
     outliers=c()
     for (k in 1 : K)
     {
-      var=Sigma[,((k-1)*d+1):(k*d)]
-      cen=centers[k,]
-      Pilog =  mvtnorm::dmvnorm(X,mean=cen,sigma = var, log = T)
-      outliers=cbind(outliers,Pilog)
-      I=which(Pilog < epsout)
-      Pilog[I]=epsout
-      LogLikeEM=LogLikeEM+prop[k] *  exp(Pilog)
+      I=which(Phiik[,k] < epsout)
+      Phiik[I,k]=epsout
     }
-    I = apply(outliers,1,max)
-    outliers=which(I< epsout)
-    LogLikeEM=sum(log(LogLikeEM))
+    LogLikeEM=sum(Pi*Phiik)+ sum(Pi*log(prop))- sum(Pi*log(Pi))
+    I = apply(Phiik,1,max)
+    outliers=which(I<= epsout)
     if (length(which(is.na(LogLikeEM)==T))==0){
       if(LogLikeEM> LogLike)
       {
         finalcenters=centers
         finalcluster=Pi
         finalvar=Sigma
+        finalPhiik=Phiik
         LogLike=LogLikeEM
         finalniter=l
         finalprop=prop
@@ -149,7 +164,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
       lambda=rep(0,d*K)
       Pi=matrix(1,nrow=n,ncol=K)
       Sigma=c()
-      centers=X[sample(1:n,K),]
+      centers=as.matrix(X[sample(1:n,K),],ncol=d)
       l=0
       dist=10^10
       for( k in 1:K)
@@ -164,14 +179,20 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
         for (k in 1 : K)
         {
           var=Sigma[,((k-1)*d+1):(k*d)]
-          cen=centers[k,]
+          if (K>1){
+          cen=c(centers[k,])
+          }
+          if (K==1){
+          cen=c(centers)
+          }
           Pi[,k] = mvtnorm::dmvnorm(X,mean=cen,sigma = var,log=T)
         }
-        Pi=Pi - apply(Pi,1,max)
+        Phiik=Pi
+        Pi=Pi
         for (k in 1:K)
         {
-          I=which(Pi[,k]< -100)
-          Pi[I,k] = -100
+          I=which(Pi[,k]< epsout)
+          Pi[I,k] = epsout
           Pi[,k] = prop[k]*exp(Pi[,k])
         }
         Pi=Pi/rowSums(Pi)
@@ -181,7 +202,12 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
 #        {
 #          cat('Pi fout la merde : i=',K,o,l,'\n')
 #        }
-        centers2=centers
+        if (K > 1){
+          centers2=centers
+        }
+        if (K == 1){
+          centers2=as.vector(centers)
+        }
         #### Mise ? jour des centres et des variances et des poids
         for (k in 1:K)
         {
@@ -190,7 +216,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
             prop[k]=mean(Pi[,k])
             if (methodMCM=="Weiszfeld_init")
             {
-              weisz=WeiszfeldCov_init(X,init = centers[k,],init_cov =Sigma[,((k-1)*d+1):(k*d)],weights=(Pi[,k])/sum(Pi[,k]),scores=F,nitermax = nitermax,epsilon = epsilon)
+              weisz=WeiszfeldCov_init(X,init = centers[k,,drop=FALSE],init_cov =Sigma[,((k-1)*d+1):(k*d)],weights=(Pi[,k])/sum(Pi[,k]),scores=F,nitermax = nitermax,epsilon = epsilon)
             }
             if (methodMCM=="Weiszfeld")
             {
@@ -199,7 +225,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
             #         weisz=Gmedian::WeiszfeldCov(X,weights=(Pi[,k]),scores=F,nitermax = nitermax,epsilon = epsilon)
             if (methodMCM=="Gmedian_init")
             {
-              weisz=GmedianCov_init(X,init = centers[k,],init_cov =Sigma[,((k-1)*d+1):(k*d)],weights=(Pi[,k]),scores=F)
+              weisz=GmedianCov_init(X,init = centers[k,,drop=FALSE],init_cov =Sigma[,((k-1)*d+1):(k*d)],weights=(Pi[,k]),scores=F)
             }
             if (methodMCM=="Gmedian")
             {
@@ -207,7 +233,12 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
             }
             if (length(which(is.na(weisz$covmedian)==T))==0){
               if (length(which(is.infinite(weisz$covmedian)==T))==0){
-                centers[k,]=weisz$median
+                if (K>1){
+                  centers[k,]=weisz$median
+                }
+                if (K==1){
+                  centers=weisz$median
+                }
                 eig=eigen(weisz$covmedian)
                 vec=eig$vectors
                 vp=eig$values
@@ -245,17 +276,12 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
       outliers=c()
       for (k in 1 : K)
       {
-        var=Sigma[,((k-1)*d+1):(k*d)]
-        cen=centers[k,]
-        Pilog =  mvtnorm::dmvnorm(X,mean=cen,sigma = var, log = T)
-        outliers=cbind(outliers,Pilog)
-        I=which(Pilog < epsout)
-        Pilog[I]=epsout
-        LogLikeEM=LogLikeEM+prop[k] *  exp(Pilog)
+        I=which(Phiik[,k] < epsout)
+        Phiik[I,k]=epsout
       }
-      I = apply(outliers,1,max)
-      outliers=which(I< epsout)
-      LogLikeEM=sum(log(LogLikeEM))
+      LogLikeEM=sum(Pi*Phiik)+ sum(Pi*log(prop))- sum(Pi*log(Pi))
+      I = apply(Phiik,1,max)
+      outliers=which(I<= epsout)
       if (length(which(is.na(LogLikeEM)==T))==0){
         if(LogLikeEM> LogLike)
         {
@@ -264,6 +290,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
           finalvar=Sigma
           LogLike=LogLikeEM
           finalniter=l
+          finalPhiik=Phiik
           finalprop=prop
           finaloutliers=outliers
         }
@@ -278,7 +305,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
 
 RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsvp,
               mc_sample_size=1000, LogLike=-10^10,init=T,epsPi=10^-4,epsout=-100,
-              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),
+              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',
               methodMC="RobbinsMC", par=T,methodMCM="Weiszfeld")
 {
   initprop=F
@@ -289,6 +316,7 @@ RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsv
   if (length(nclust)==1)
   {
     K=nclust
+    Kopt=K
     if (init==T)
     {
       initprop=  mclust::hclass(clas,nclust)
@@ -308,7 +336,8 @@ RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsv
     bestresult=resultat
     I=which(is.na(a))
     a[I]=0
-    ICL= resultat$Loglike - log(nrow(X)/2)*(nclust*ncol(X) + nclust*ncol(X)*(ncol(X)+1)/2) + sum(a)
+    ICL=bestresult$Loglike - 0.5*log(nrow(X))*(nclust-1+  nclust*ncol(X) + nclust*ncol(X)*(ncol(X)+1)/2) - sum(resultat$Pi*log(resultat$Pi))
+    BIC=bestresult$Loglike - 0.5*log(nrow(X))*(nclust-1+ nclust*ncol(X) + nclust*ncol(X)*(ncol(X)+1)/2)
   }
   if (length(nclust)>1)
   {
@@ -370,16 +399,22 @@ RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsv
 
     }
     ICL=c()
+    BIC=c()
     for (i in 1:length(nclust))
     {
-      a=resultat[[i]]$Pi*log(resultat[[i]]$Pi)
-      I=which(is.na(a))
-      a[I]=0
-      ICL=c(ICL,resultat[[i]]$Loglike - log(nrow(X)/2)*(nclust[i]*ncol(X) + nclust[i]*ncol(X)*(ncol(X)+1)/2) + sum(a) )
+      ICL=c(ICL,resultat[[i]]$Loglike - 0.5*log(nrow(X))*(nclust[i]-1+  nclust[i]*ncol(X) + nclust[i]*ncol(X)*(ncol(X)+1)/2) - sum(resultat[[i]]$Pi*log(resultat[[i]]$Pi)))
+      BIC=c(BIC,resultat[[i]]$Loglike - 0.5*log(nrow(X))*(nclust[i]-1+ nclust[i]*ncol(X) + nclust[i]*ncol(X)*(ncol(X)+1)/2) )
     }
+    if (criterion=='ICL'){
     k=which.max(ICL)
+    Kopt=nclust[k]
+    }
+    if (criterion=='BIC'){
+      k=which.max(BIC)
+      Kopt=nclust[k]
+    }
     bestresult=resultat[[k]]
   }
-  return(list(allresults=resultat,bestresult=bestresult,ICL=ICL))
+  return(list(allresults=resultat,bestresult=bestresult,ICL=ICL,BIC=BIC,data=X,nclust=nclust,Kopt=Kopt))
 }
 

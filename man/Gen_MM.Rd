@@ -38,7 +38,7 @@ See also \code{\link{RobMM}} and \code{\link{RobVar}}.
 \keyword{Mixture Model}
 \examples{
 p <- 3
-nk <- rep(500,p)
+nk <- rep(50,p)
 mu <- c()
 for (i in 1:length(nk))
 {
