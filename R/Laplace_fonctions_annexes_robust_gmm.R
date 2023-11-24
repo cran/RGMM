@@ -7,7 +7,7 @@
 
 
 LGradMC=function(mc_sample_size=1000,niter=10,vp,
-                 epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=rep(0,length(vp)))
+                 epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=vp)
 {
   p=length(vp)
   vp2=init
@@ -43,7 +43,7 @@ LGradMC=function(mc_sample_size=1000,niter=10,vp,
 #### samp= si on veut ressortir les valeurs des estimations de point fixe pour differentes iteration
 
 
-LFixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=rep(0,length(vp)),df=3)
+LFixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=vp,df=3)
 {
   p=length(vp)
   vplist=c()
@@ -79,7 +79,7 @@ LFixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter)
 
 
 
-LRobbinsMC=function(mc_sample_size=1000,vp,epsilon=10^(-8),alpha=0.75,c=2,w=2,samp=mc_sample_size,init=rep(0,length(vp)))
+LRobbinsMC=function(mc_sample_size=1000,vp,epsilon=10^(-8),alpha=0.75,c=2,w=2,samp=mc_sample_size,init=vp)
 {
   p=as.numeric(length(vp))
   vp2=init

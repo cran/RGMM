@@ -7,7 +7,7 @@
 
 
 TGradMC=function(mc_sample_size=1000,niter=10,vp,df=3,
-                 epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=rep(0,length(vp)))
+                 epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=vp)
 {
   p=length(vp)
   vp2=init
@@ -43,7 +43,7 @@ TGradMC=function(mc_sample_size=1000,niter=10,vp,df=3,
 #### samp= si on veut ressortir les valeurs des estimations de point fixe pour differentes iteration
 
 
-TFixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=rep(0,length(vp)),df=3)
+TFixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=vp,df=3)
 {
   p=length(vp)
   vplist=c()
@@ -79,7 +79,7 @@ TFixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter)
 
 
 
-TRobbinsMC=function(mc_sample_size=1000,vp,epsilon=10^(-8),alpha=0.75,c=2,w=2,samp=mc_sample_size,init=rep(0,length(vp)),df=3)
+TRobbinsMC=function(mc_sample_size=1000,vp,epsilon=10^(-8),alpha=0.75,c=2,w=2,samp=mc_sample_size,init=vp,df=3)
 {
   p=length(vp)
   vp2=init

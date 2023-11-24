@@ -1,4 +1,6 @@
 useDynLib(RGMM, .registration=TRUE)
+importFrom("stats", "BIC")
+importFrom(DescTools, RobScale)
 importFrom(Rcpp, evalCpp)
 importFrom(mvtnorm,rmvnorm)
 importFrom(mvtnorm,dmvnorm)
@@ -24,10 +26,12 @@ importFrom(ggplot2,scale_color_manual)
 importFrom(ggplot2,facet_wrap)
 importFrom(ggplot2,geom_bar)
 importFrom(ggplot2,scale_size_continuous)
-
-
-
 export(RobMM)
-export(Gen_MM)
-export(RMMplot)
 export(RobVar)
+export(RMMplot)
+export(Gen_MM)
+
+
+
+
+

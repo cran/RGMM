@@ -1,8 +1,15 @@
-Robust_LMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
+Robust_LMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,scale='none',
                     mc_sample_size=1000, LogLike=-10^10,arret=10^(-4),epsvp=10^-4,
                     alpha=0.75,c=ncol(X),w=2,epsilon=10^(-3),epsPi=10^-4,initprop=F,epsout=-100,
                     methodMC="RobbinsMC",methodMCM="Weiszfeld")
 {
+  if (scale=='robust')
+  {
+    X=DescTools::RobScale(X)
+    scales=attr(X,"scaled:scale")
+    init_loc=attr(X,"scaled:center")
+    c=1
+  }
   d=ncol(X)
   n=nrow(X)
   finalcenters=matrix(0,nrow=K,ncol=ncol(X))
@@ -98,14 +105,14 @@ Robust_LMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
               lambdak=apply(cbind(mcm$vp,rep(epsvp,length(mcm$vp))),1,FUN=max)
               lambda[((k-1)*d+1):(k*d)]=lambdak
               var= t(matrix(vec,ncol=d,byrow=T))%*%diag(lambdak)%*%(matrix(vec,ncol=d,byrow=T))
- #             if(sum(is.na(var))>0)
-#              {
-#                cat('var fout la merde : i=',K,l,'\n')
-#              }
+              #             if(sum(is.na(var))>0)
+              #              {
+              #                cat('var fout la merde : i=',K,l,'\n')
+              #              }
               if(sum(is.na(var))==0){
-              Sigma[,((k-1)*d+1):(k*d)]= var
+                Sigma[,((k-1)*d+1):(k*d)]= var
+              }
             }
-          }
           }
         }
       }
@@ -195,10 +202,10 @@ Robust_LMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
         Pi=Pi/rowSums(Pi)
         Pi=Pi+epsPi
         Pi=Pi/rowSums(Pi)
-#        if(sum(is.na(Pi))>0)
-#        {
-#          cat('Pi fout la merde : i=',K,o,l,'\n')
-#        }
+        #        if(sum(is.na(Pi))>0)
+        #        {
+        #          cat('Pi fout la merde : i=',K,o,l,'\n')
+        #        }
         if (K > 1){
           centers2=centers
         }
@@ -263,43 +270,50 @@ Robust_LMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
                 lambdak=apply(cbind(mcm$vp,rep(epsvp,length(mcm$vp))),1,FUN=max)
                 lambda[((k-1)*d+1):(k*d)]=lambdak
                 var= t(matrix(vec,ncol=d,byrow=T))%*%diag(lambdak)%*% (matrix(vec,ncol=d,byrow=T))
-#                if(sum(is.na(var))>0)
-#                {
-#                  cat('var fout la merde : i=',K,o,l,'\n')
-#                }
+                #                if(sum(is.na(var))>0)
+                #                {
+                #                  cat('var fout la merde : i=',K,o,l,'\n')
+                #                }
                 if(sum(is.na(var))==0){
                   Sigma[,((k-1)*d+1):(k*d)]= var
-              }
+                }
               }
             }
           }
         }
         dist=sum((centers2-centers)^2)
       }
-    LogLikeEM=0
-    outliers=c()
-    for (k in 1 : K)
-    {
-      I=which(Phiik[,k] < epsout)
-      Phiik[I,k]=epsout
-    }
-    LogLikeEM=sum(Pi*Phiik)+ sum(Pi*log(prop))- sum(Pi*log(Pi))
-    I = apply(Phiik,1,max)
-    outliers=which(I<= epsout)
-    if (length(which(is.na(LogLikeEM)==T))==0){
-      if(LogLikeEM> LogLike)
+      LogLikeEM=0
+      outliers=c()
+      for (k in 1 : K)
       {
-        finalcenters=centers
-        finalcluster=Pi
-        finalvar=Sigma
-        LogLike=LogLikeEM
-        finaldensities=Phiik
-        finalniter=l
-        finalprop=prop
-        finaloutliers=outliers
+        I=which(Phiik[,k] < epsout)
+        Phiik[I,k]=epsout
       }
-    }
+      LogLikeEM=sum(Pi*Phiik)+ sum(Pi*log(prop))- sum(Pi*log(Pi))
+      I = apply(Phiik,1,max)
+      outliers=which(I<= epsout)
+      if (length(which(is.na(LogLikeEM)==T))==0){
+        if(LogLikeEM> LogLike)
+        {
+          finalcenters=centers
+          finalcluster=Pi
+          finalvar=Sigma
+          LogLike=LogLikeEM
+          finaldensities=Phiik
+          finalniter=l
+          finalprop=prop
+          finaloutliers=outliers
+        }
+      }
 
+    }
+  }
+  if (scale=='robust')
+  {
+    for (k in 1:K){
+      finalvar[,((k-1)*d+1):(k*d)]=diag(scales)%*%finalvar[,((k-1)*d+1):(k*d)]%*%diag(scales)
+      finalcenters[k,]=finalcenters[k,]%*%diag(scales)+ init_loc
     }
   }
   return(list(centers=finalcenters,Sigma=finalvar,Loglike=LogLike, Pi=finalcluster,niter=finalniter,initEM=initprop,prop=finalprop,outliers=finaloutliers))
@@ -308,7 +322,7 @@ Robust_LMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
 
 RLMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=10^-4,
               mc_sample_size=1000, LogLike=-10^10,init=T,epsPi=10^-4,epsout=-100,
-              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',
+              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',scale='none',
               methodMC="RobbinsMC", par=T,methodMCM="Weiszfeld")
 {
   initprop=F
@@ -334,7 +348,7 @@ RLMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=10^-
     }
     resultat=Robust_LMM(X,K=nclust, ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsPi=epsPi,epsout=epsout,epsvp=epsvp,
                         niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,
-                        alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                        alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
     a=resultat$Pi*log(resultat$Pi)
     bestresult=resultat
     I=which(is.na(a))
@@ -371,10 +385,10 @@ RLMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=10^-
             initprop=  genieclust::genie(X,k=K)
           }
           #         cat('Running for : K=',K,'\n')
-#          cat("Running K =", min(nclust), "...\n")
+          #          cat("Running K =", min(nclust), "...\n")
           resultatk=Robust_LMM(X,K=K, ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsout=epsout,epsvp=epsvp,
                                niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,epsPi=epsPi,
-                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
           return(resultatk)
         }
 
@@ -393,10 +407,10 @@ RLMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=10^-
           {
             initprop=  genieclust::genie(X,k=K)
           }
-#          cat('Running for : K=',K,'\n')
+          #          cat('Running for : K=',K,'\n')
           resultatk=Robust_LMM(X,K=K, ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsPi=epsPi,epsout=epsout,epsvp=epsvp,
                                niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,
-                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
           return(resultatk)
         }
 

@@ -1,8 +1,15 @@
-Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
+Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,scale='none',
                     mc_sample_size=1000, LogLike=-10^10,arret=10^(-4),epsvp=10^-4,
                     alpha=0.75,c=ncol(X),w=2,epsilon=10^(-3),epsPi=10^-4,initprop=F,epsout=-100,
                     methodMC="RobbinsMC",methodMCM="Weiszfeld")
 {
+  if (scale=='robust')
+  {
+    X=DescTools::RobScale(X)
+    scales=attr(X,"scaled:scale")
+    init_loc=attr(X,"scaled:center")
+    c=1
+  }
   d=ncol(X)
   n=nrow(X)
   finalcenters=matrix(0,nrow=K,ncol=ncol(X))
@@ -298,13 +305,20 @@ Robust_TMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,
 
     }
   }
+  if (scale=='robust')
+  {
+    for (k in 1:K){
+      finalvar[,((k-1)*d+1):(k*d)]=diag(scales)%*%finalvar[,((k-1)*d+1):(k*d)]%*%diag(scales)
+      finalcenters[k,]=finalcenters[k,]%*%diag(scales)+ init_loc
+    }
+  }
   return(list(centers=finalcenters,Sigma=finalvar,Loglike=LogLike, Pi=finalcluster,niter=finalniter,initEM=initprop,prop=finalprop,outliers=finaloutliers))
 }
 
 
 RTMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,epsvp=10^-4,
               mc_sample_size=1000, LogLike=-10^10,init=T,epsPi=10^-4,epsout=-100,
-              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',
+              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',scale='none',
               methodMC="RobbinsMC", par=T,methodMCM="Weiszfeld")
 {
   initprop=F
@@ -330,7 +344,7 @@ RTMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,epsvp
     }
     resultat=Robust_TMM(X,K=nclust,df=df,ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsPi=epsPi,epsout=epsout,epsvp=epsvp,
                         niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,
-                        alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                        alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
     a=resultat$Pi*log(resultat$Pi)
     bestresult=resultat
     I=which(is.na(a))
@@ -370,7 +384,7 @@ RTMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,epsvp
 #          cat("Running K =", min(nclust), "...\n")
           resultatk=Robust_TMM(X,K=K,df=df,ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsout=epsout,epsvp=epsvp,
                                niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,epsPi=epsPi,
-                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
           return(resultatk)
         }
 
@@ -392,7 +406,7 @@ RTMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,df=3,epsvp
 #          cat('Running for : K=',K,'\n')
           resultatk=Robust_TMM(X,K=K,df=df,ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsPi=epsPi,epsout=epsout,epsvp=epsvp,
                                niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,
-                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
           return(resultatk)
         }
 

@@ -8,7 +8,7 @@
 RobVar(X, c=2, alpha=0.75, model='Gaussian', methodMCM='Weiszfeld',
                 methodMC='Robbins' , mc_sample_size=1000, init=rep(0, ncol(X)),
                 init_cov=diag(ncol(X)),
-                epsilon=10^(-8), w=2, initvp=rep(0, length(vp)), df=3, niterMC=50,
+                epsilon=10^(-8), w=2, df=3, niterMC=50,
                 cgrad=2, niterWeisz=50, epsWeisz=10^-8, alphaMedian=0.75, cmedian=2)
 }
 %- maybe also 'usage' for other objects documented here.
@@ -24,7 +24,6 @@ RobVar(X, c=2, alpha=0.75, model='Gaussian', methodMCM='Weiszfeld',
 \item{init_cov}{A numeric matrix giving an initialization for estimating the Median Covariation Matrix.}
 \item{epsilon}{A positive scalar giving a stoping condition for algorithm.}
 \item{w}{A positive integer specifying the power for the weighted averaged Robbins-Monro algorithm if \code{methodMC='RobbinsMC'}.}
-\item{initvp}{A numeric vector for initializing the estimates of the eigenvalues of the covariance.}
 \item{df}{An integer larger (or equal) than \code{3} specifying the degrees of freedom for the Student law if \code{model='Student'}. See also \code{\link{Gen_MM}}. Default is \code{3}.}
 \item{niterMC}{An integer giving the number of iterations for iterative algorithms if the selected method is \code{'Grad'} or \code{'Fix'}. Default is \code{50}.}
 \item{cgrad}{A numeric vector with positive values giving the stepsequence of the gradient algorithm for estimating the variance if \code{methodMC='Grad'}. Its length has to be equal to \code{niter}.}

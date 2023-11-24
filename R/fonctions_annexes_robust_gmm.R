@@ -6,7 +6,7 @@
 #### pas =pas de la descente de gradient
 
 
-GradMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=rep(0,length(vp)))
+GradMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=vp)
 {
   p=length(vp)
   vp2=init
@@ -43,7 +43,7 @@ GradMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter)
 #### samp= si on veut ressortir les valeurs des estimations de point fixe pour differentes iteration
 
 
-FixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=rep(0,length(vp)))
+FixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),samp=niter,init=vp)
 {
   p=length(vp)
   vplist=c()
@@ -80,7 +80,7 @@ FixMC=function(mc_sample_size=1000,niter=10,vp,epsilon=10^(-8),pas=rep(1,niter),
 
 
 
-RobbinsMC=function(mc_sample_size=1000,vp,epsilon=10^(-8),alpha=0.75,c=2,w=2,samp=mc_sample_size,init=rep(0,length(vp)))
+RobbinsMC=function(mc_sample_size=1000,vp,epsilon=10^(-8),alpha=0.75,c=2,w=2,samp=mc_sample_size,init=vp)
 {
   p=length(vp)
   vp2=init

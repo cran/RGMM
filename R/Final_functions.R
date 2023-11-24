@@ -1,11 +1,10 @@
-utils::globalVariables(c( "x", "y", "coul", "couleur",'BIC','ICL'))
-
+utils::globalVariables(c("x",'y','ICL','coul','couleur'))
 
 RobMM=function(X,nclust=2:5,model="Gaussian",ninit=10,nitermax=50,
                niterEM=50,niterMC=50,df=3,epsvp=10^(-4),
                mc_sample_size=1000, LogLike=-Inf,init='genie',
-               epsPi=10^-4,epsout=-20,
-               alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',
+               epsPi=10^-4,epsout=-20,scale='none',
+               alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='BIC',
                methodMC="RobbinsMC", par=TRUE,methodMCM="Weiszfeld")
 {
   if (model=='Gaussian')
@@ -13,7 +12,7 @@ RobMM=function(X,nclust=2:5,model="Gaussian",ninit=10,nitermax=50,
     resultat=RGMM(X,nclust=nclust,ninit=ninit,nitermax=nitermax,niterEM=niterEM,
                   niterMC=niterMC,epsvp=epsvp,mc_sample_size=mc_sample_size,
                   LogLike=LogLike,init=init,epsPi=epsPi,epsout=epsout,criterion=criterion,
-                  alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,
+                  alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,scale=scale,
                   methodMCM=methodMCM,par=par)
   }
   if (model=='Student')
@@ -21,7 +20,7 @@ RobMM=function(X,nclust=2:5,model="Gaussian",ninit=10,nitermax=50,
     resultat=RTMM(X,nclust=nclust,ninit=ninit,nitermax=nitermax,niterEM=niterEM,
                   niterMC=niterMC,epsvp=epsvp,mc_sample_size=mc_sample_size,df=df,
                   LogLike=LogLike,init=init,epsPi=epsPi,epsout=epsout,criterion=criterion,
-                  alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,
+                  alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,scale=scale,
                   methodMCM=methodMCM,par=par)
   }
   if (model=='Laplace')
@@ -37,8 +36,8 @@ RobMM=function(X,nclust=2:5,model="Gaussian",ninit=10,nitermax=50,
 }
 
 RobVar=function(X,c=2,alpha=0.75,model='Gaussian',methodMCM='Weiszfeld',
-                methodMC='Robbins' ,mc_sample_size=1000,init=rep(0,ncol(X)),init_cov=diag(ncol(X)),
-                epsilon=10^(-8),w=2,initvp=rep(0,length(vp)),df=3,niterMC=50,
+                methodMC='Robbins' ,mc_sample_size=1000,init=rep(0,ncol(X)),
+                init_cov =diag(ncol(X)), epsilon=10^(-8),w=2,df=3,niterMC=50,
                 cgrad=2,niterWeisz=50,epsWeisz=10^-8,alphaMedian=0.75,cmedian=2)
 {
   d=ncol(X)
@@ -58,24 +57,24 @@ RobVar=function(X,c=2,alpha=0.75,model='Gaussian',methodMCM='Weiszfeld',
     if (methodMC=='Robbins')
     {
       vpvar=RobbinsMC(mc_sample_size=mc_sample_size,vp=vp,
-                      epsilon=epsilon,alpha=alpha,c=c,w=w,init=initvp)
+                      epsilon=epsilon,alpha=alpha,c=c,w=w)
     }
     if (methodMC=='Fix')
     {
       vpvar=FixMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                  epsilon=epsilon,init=initvp)
+                  epsilon=epsilon)
     }
     if (methodMC=='Grad')
     {
       if(length(c)> 1)
       {
         vpvar=GradMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                     epsilon=epsilon,init=initvp,pas=c)
+                     epsilon=epsilon,pas=c)
       }
       if (length(c) == 1)
       {
         vpvar=GradMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                     epsilon=epsilon,init=initvp,pas=c*((1:(niterMC))^(-0.5)))
+                     epsilon=epsilon,pas=c*((1:(niterMC))^(-0.5)))
       }
     }
   }
@@ -84,24 +83,24 @@ RobVar=function(X,c=2,alpha=0.75,model='Gaussian',methodMCM='Weiszfeld',
     if (methodMC=='Robbins')
     {
       vpvar=TRobbinsMC(mc_sample_size=mc_sample_size,vp=vp,df=df,
-                       epsilon=epsilon,alpha=alpha,c=c,w=w,init=initvp)
+                       epsilon=epsilon,alpha=alpha,c=c,w=w)
     }
     if (methodMC=='Fix')
     {
       vpvar=TFixMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                   epsilon=epsilon,init=initvp,df=df)
+                   epsilon=epsilon,df=df)
     }
     if (methodMC=='Grad')
     {
       if(length(c)> 1)
       {
         vpvar=TGradMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                      epsilon=epsilon,init=initvp,pas=c,df=df)
+                      epsilon=epsilon,pas=c,df=df)
       }
       if (length(c) == 1)
       {
         vpvar=TGradMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                      epsilon=epsilon,init=initvp,pas=c*((1:(niterMC))^(-0.5)))
+                      epsilon=epsilon,pas=c*((1:(niterMC))^(-0.5)))
       }
     }
   }
@@ -110,24 +109,24 @@ RobVar=function(X,c=2,alpha=0.75,model='Gaussian',methodMCM='Weiszfeld',
     if (methodMC=='Robbins')
     {
       vpvar=LRobbinsMC(mc_sample_size=mc_sample_size,vp=vp,
-                       epsilon=epsilon,alpha=alpha,c=c,w=w,init=initvp)
+                       epsilon=epsilon,alpha=alpha,c=c,w=w)
     }
     if (methodMC=='Fix')
     {
       vpvar=LFixMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                   epsilon=epsilon,init=initvp )
+                   epsilon=epsilon )
     }
     if (methodMC=='Grad')
     {
       if(length(c)> 1)
       {
         vpvar=LGradMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                      epsilon=epsilon,init=initvp,pas=c)
+                      epsilon=epsilon,pas=c)
       }
       if (length(c) == 1)
       {
         vpvar=LGradMC(mc_sample_size=mc_sample_size,vp=vp,niter=niterMC,
-                      epsilon=epsilon,init=initvp,pas=c*((1:(niterMC))^(-0.5)))
+                      epsilon=epsilon,pas=c*((1:(niterMC))^(-0.5)))
       }
     }
   }

@@ -8,9 +8,9 @@
 RobMM(X, nclust=2:5, model="Gaussian", ninit=10,
                nitermax=50, niterEM=50, niterMC=50, df=3,
                epsvp=10^(-4), mc_sample_size=1000, LogLike=-Inf,
-               init='genie', epsPi=10^-4, epsout=-20,
+               init='genie', epsPi=10^-4, epsout=-20,scale='none',
                alpha=0.75, c=ncol(X), w=2, epsilon=10^(-8),
-               criterion='ICL',methodMC="RobbinsMC", par=TRUE,
+               criterion='BIC',methodMC="RobbinsMC", par=TRUE,
                methodMCM="Weiszfeld")
 }
 %- maybe also 'usage' for other objects documented here.
@@ -23,6 +23,7 @@ RobMM(X, nclust=2:5, model="Gaussian", ninit=10,
 \item{niterEM}{The number of iterations for the EM algorithm.}
 \item{niterMC}{The number of iterations for estimating robustly the variance of each class if \code{methodMC='FixMC'} or \code{methodMC='GradMC'}.}
 \item{df}{The degrees of freedom for the Student law if \code{model='Student'}.}
+\item{scale}{Run the algorithm on scaled data if \code{scale='robust'}.}
 \item{epsvp}{The minimum values the estimates of the eigenvalues of the Median Covariation Matrix can take. Default is \code{10^-4}.}
 \item{mc_sample_size}{The number of data generated for the Monte-Carlo method for estimating robustly the variance.}
 \item{LogLike}{The initial loglikelihood to "beat". Defulat is \code{-Inf}.}
@@ -70,9 +71,11 @@ Vardi, Y. and Zhang, C.-H. (2000). The multivariate L1-median and associated dat
 See also \code{\link{Gen_MM}}, \code{\link{RMMplot}} and \code{\link{RobVar}}.
 }
 \examples{
-ech <- Gen_MM()
-X <- ech$X
-res <- RobMM(X , nclust=3,ninit=0)
-RMMplot(res,graph=c('Two_Dim'))
+\dontrun{
+ech <- Gen_MM(mu = matrix(c(rep(-2,3),rep(2,3),rep(0,3)),byrow = TRUE,nrow=3))
+ X <- ech$X
+ res <- RobMM(X , nclust=3)
+ RMMplot(res,graph=c('Two_Dim'))
+ }
 }
 \keyword{Robust Mixture Model}

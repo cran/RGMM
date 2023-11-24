@@ -1,6 +1,6 @@
 \name{RMMplot}
 \alias{RMMplot}
-\title{Rmmplot}
+\title{RMMplot}
 
 \description{A plot function for Robust Mixture Model
 }
@@ -26,8 +26,10 @@ See also \code{\link{RobMM}} and \code{\link{Gen_MM}}.
 }
 \keyword{Mixture Model}
 \examples{
-ech <- Gen_MM()
-X <- ech$X
-res <- RobMM(X , nclust=3,ninit=0)
-RMMplot(res,graph=c('Two_Dim'))
+\dontrun{
+ech <- Gen_MM(mu = matrix(c(rep(-2,3),rep(2,3),rep(0,3)),byrow = TRUE,nrow=3))
+ X <- ech$X
+ res <- RobMM(X , nclust=3)
+ RMMplot(res,graph=c('Two_Dim'))
+ }
 }

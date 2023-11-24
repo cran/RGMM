@@ -1,8 +1,15 @@
 Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
-                    mc_sample_size=1000, LogLike=-10^10,arret=10^(-4),epsvp=0,
+                    mc_sample_size=1000, LogLike=-10^10,arret=10^(-4),epsvp=0,scale='none',
                     alpha=0.75,c=ncol(X),w=2,epsilon=10^(-3),epsPi=10^-4,initprop=F,epsout=-20,
                     methodMC="RobbinsMC",methodMCM="Weiszfeld")
 {
+  if (scale=='robust')
+  {
+    X=DescTools::RobScale(X)
+    scales=attr(X,"scaled:scale")
+    init_loc=attr(X,"scaled:center")
+    c=1
+  }
   d=ncol(X)
   n=nrow(X)
   finalcenters=matrix(0,nrow=K,ncol=ncol(X))
@@ -35,7 +42,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
     {
       l=l+1
       if (K > 1){
-      centers2=centers
+        centers2=centers
       }
       if (K == 1){
         centers2=as.vector(centers)
@@ -66,7 +73,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
           if (length(which(is.na(weisz$covmedian)==T))==0){
             if (length(which(is.infinite(weisz$covmedian)==T))==0){
               if (K>1){
-              centers[k,]=weisz$median
+                centers[k,]=weisz$median
               }
               if (K==1){
                 centers=weisz$median
@@ -108,7 +115,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
       {
         var=Sigma[,((k-1)*d+1):(k*d)]
         if (K>1){
-        cen=(centers[k,])
+          cen=(centers[k,])
         }
         if (K==1){
           cen=c(centers)
@@ -126,10 +133,10 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
       Pi=Pi/rowSums(Pi)
       Pi=Pi+epsPi
       Pi=Pi/rowSums(Pi)
-#      if(sum(is.na(Pi))>0)
-#      {
-#        cat('Pi fout la merde : i=',K,o,l,'\n')
-#      }
+      #      if(sum(is.na(Pi))>0)
+      #      {
+      #        cat('Pi fout la merde : i=',K,o,l,'\n')
+      #      }
     }
     LogLikeEM=0
     outliers=c()
@@ -180,10 +187,10 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
         {
           var=Sigma[,((k-1)*d+1):(k*d)]
           if (K>1){
-          cen=c(centers[k,])
+            cen=c(centers[k,])
           }
           if (K==1){
-          cen=c(centers)
+            cen=c(centers)
           }
           Pi[,k] = mvtnorm::dmvnorm(X,mean=cen,sigma = var,log=T)
         }
@@ -198,10 +205,10 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
         Pi=Pi/rowSums(Pi)
         Pi=Pi+epsPi
         Pi=Pi/rowSums(Pi)
-#        if(sum(is.na(Pi))>0)
-#        {
-#          cat('Pi fout la merde : i=',K,o,l,'\n')
-#        }
+        #        if(sum(is.na(Pi))>0)
+        #        {
+        #          cat('Pi fout la merde : i=',K,o,l,'\n')
+        #        }
         if (K > 1){
           centers2=centers
         }
@@ -298,6 +305,13 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
 
     }
   }
+  if (scale=='robust')
+  {
+    for (k in 1:K){
+    finalvar[,((k-1)*d+1):(k*d)]=diag(scales)%*%finalvar[,((k-1)*d+1):(k*d)]%*%diag(scales)
+    finalcenters[k,]=finalcenters[k,]%*%diag(scales)+ init_loc
+    }
+  }
   return(list(centers=finalcenters,Sigma=finalvar,Loglike=LogLike, Pi=finalcluster,niter=finalniter,initEM=initprop,prop=finalprop,outliers=finaloutliers))
 }
 
@@ -305,7 +319,7 @@ Robust_GMM=function(X,K=2,ninit=10,nitermax=50,niterEM=50,niterMC=50,
 
 RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsvp,
               mc_sample_size=1000, LogLike=-10^10,init=T,epsPi=10^-4,epsout=-100,
-              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',
+              alpha=0.75,c=ncol(X),w=2,epsilon=10^(-8),criterion='ICL',scale='none',
               methodMC="RobbinsMC", par=T,methodMCM="Weiszfeld")
 {
   initprop=F
@@ -331,7 +345,7 @@ RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsv
     }
     resultat=Robust_GMM(X,K=nclust,ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsPi=epsPi,epsout=epsout,epsvp=epsvp,
                         niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,
-                        alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                        alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
     a=resultat$Pi*log(resultat$Pi)
     bestresult=resultat
     I=which(is.na(a))
@@ -368,10 +382,10 @@ RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsv
             initprop=  genieclust::genie(X,k=K)
           }
           #         cat('Running for : K=',K,'\n')
-#          cat("Running K =", min(nclust), "...\n")
+          #          cat("Running K =", min(nclust), "...\n")
           resultatk=Robust_GMM(X,K=K,ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsout=epsout,epsvp=epsvp,
                                niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,epsPi=epsPi,
-                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
           return(resultatk)
         }
 
@@ -390,10 +404,10 @@ RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsv
           {
             initprop=  genieclust::genie(X,k=K)
           }
-#          cat('Running for : K=',K,'\n')
+          #          cat('Running for : K=',K,'\n')
           resultatk=Robust_GMM(X,K=K,ninit=ninit,nitermax=nitermax,niterEM=niterEM,epsPi=epsPi,epsout=epsout,epsvp=epsvp,
                                niterMC=niterMC,mc_sample_size=mc_sample_size, LogLike=LogLike,initprop=initprop,
-                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM)
+                               alpha=alpha,c=c,w=w,epsilon=epsilon,methodMC=methodMC,methodMCM=methodMCM,scale=scale)
           return(resultatk)
         }
 
@@ -406,8 +420,8 @@ RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsv
       BIC=c(BIC,resultat[[i]]$Loglike - 0.5*log(nrow(X))*(nclust[i]-1+ nclust[i]*ncol(X) + nclust[i]*ncol(X)*(ncol(X)+1)/2) )
     }
     if (criterion=='ICL'){
-    k=which.max(ICL)
-    Kopt=nclust[k]
+      k=which.max(ICL)
+      Kopt=nclust[k]
     }
     if (criterion=='BIC'){
       k=which.max(BIC)
@@ -417,4 +431,3 @@ RGMM=function(X,nclust=2:5,ninit=10,nitermax=50,niterEM=50,niterMC=50,epsvp=epsv
   }
   return(list(allresults=resultat,bestresult=bestresult,ICL=ICL,BIC=BIC,data=X,nclust=nclust,Kopt=Kopt))
 }
-
